@@ -1,0 +1,67 @@
+{
+  "local": {
+    "android": [
+      {
+        "deviceName": "Pixel 9 API 35",
+        "platformVersion": "15",
+        "appPackage": "com.thehomedepot.inhouse",
+        "appActivity": "com.thehomedepot.startup.activities.StartupActivity",
+        "appPath": "src/main/resources/app/Android/android7.58.0.2146TEST.apk",
+        "noReset": false,
+        "serverUrl": "http://127.0.0.1:4723"
+      }
+    ],
+    "ios": [
+      {
+        "deviceName": "iPhone 16e",
+        "platformVersion": "26.2",
+        "bundleId": "com.thehomedepot.inhouse",
+        "appPath": "src/main/resources/app/iOS/THDConsumer.ipa",
+        "autoAcceptAlerts": true,
+        "serverUrl": "http://127.0.0.1:4723"
+      }
+    ]
+  },
+  "remote": {
+    "android": [
+      {
+        "deviceName": "Samsung Galaxy S23",
+        "platformVersion": "16",
+        "appPackage": "com.thehomedepot.inhouse",
+        "appActivity": "com.thehomedepot.startup.activities.StartupActivity",
+        "appPath": "storage:5acf97e0-1b14-4bc0-af0b-fa5aea7bfcbf",
+        "noReset": false,
+        "serverUrl": "https://saidinesh307_:accb88d8-40d6-4dd6-b072-590e9827ab11@ondemand.us-west-1.saucelabs.com:443/wd/hub",
+        "cloudOptions": {
+          "sauce:options": {
+            "username": "saidinesh307_",
+            "accessKey": "accb88d8-40d6-4dd6-b072-590e9827ab11",
+            "appiumVersion": "latest",
+            "name": "Android Test",
+            "build": "Build-1"
+          }
+        }
+      }
+    ],
+    "ios": [
+      {
+        "deviceName": "iPhone 15 Pro",
+        "platformVersion": "17.0",
+        "bundleId": "com.thehomedepot.inhouse",
+        "appPath": "storage:filename=app.ipa",
+        "autoAcceptAlerts": true,
+        "serverUrl": "https://ondemand.us-west-1.saucelabs.com:443/wd/hub",
+        "cloudOptions": {
+          "sauce:options": {
+            "username": "${SAUCE_USERNAME}",
+            "accessKey": "${SAUCE_ACCESS_KEY}",
+            "appiumVersion": "latest",
+            "name": "iOS Test",
+            "build": "Build-1"
+          }
+        }
+      }
+    ]
+  }
+}
+

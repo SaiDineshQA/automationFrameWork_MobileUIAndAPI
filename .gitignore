@@ -1,0 +1,32 @@
+# ── Build output ──
+target/
+out/
+
+# ── IDE files ──
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# ── macOS ──
+.DS_Store
+**/.DS_Store
+
+# ── Test output (generated at runtime) ──
+test-output/
+
+# ── Logs ──
+*.log
+logs/
+
+# ── App binaries (too large for git) ──
+src/main/resources/app/Android/*.apk
+src/main/resources/app/iOS/*.ipa
+
+# ── Visual baselines (optional: remove this line if you want to track baselines) ──
+# src/test/resources/visual/baseline/
+
+# ── Environment / secrets ──
+.env
+*.env
+

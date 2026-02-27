@@ -1,0 +1,34 @@
+# ─────────────────────────────────────────────────────
+# HomePage.yaml
+# Locators for the Home / Dashboard screen
+#
+# Format: type::value | type::value | ...
+# OR conditions try left-to-right until one succeeds
+# ─────────────────────────────────────────────────────
+
+searchBar:
+  android: id::com.yourapp:id/search_input | xpath:://*[@resource-id='com.yourapp:id/search_input'] | css::.search-bar
+  ios: accessibility::search_bar | id::search_input
+
+cartIcon:
+  android: id::com.yourapp:id/cart_icon | xpath://android.widget.ImageView[@content-desc='cart_icon'] | css::[content-desc='cart_icon']
+  ios: accessibility::cart_button | id::cart_icon | xpath:://XCUIElementTypeButton[@name='Cart']
+
+cartBadge:
+  android: id::com.yourapp:id/cart_count_badge | xpath:://*[@resource-id='com.yourapp:id/cart_count_badge']
+  ios: accessibility::cart_badge_count | xpath:://XCUIElementTypeStaticText[contains(@name,'cart')]
+
+profileMenu:
+  android: id::com.yourapp:id/profile_menu | xpath://android.widget.ImageView[@content-desc='profile'] | css::.profile-menu
+  ios: accessibility::profile_menu_button | id::profile_menu
+
+featuredBanner:
+  common: xpath:://*[@content-desc='featured_banner'] | css::[content-desc='featured_banner'] | accessibility::featured_banner
+
+productList:
+  android: id::com.yourapp:id/product_recycler_view | xpath:://androidx.recyclerview.widget.RecyclerView
+  ios: accessibility::product_list_view | xpath:://XCUIElementTypeTable[@name='products']
+
+logoutButton:
+  android: xpath://android.widget.TextView[@text='Logout'] | id::logout_btn | css::.logout-button
+  ios: xpath:://XCUIElementTypeButton[@name='Logout'] | accessibility::logout_button

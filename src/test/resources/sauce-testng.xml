@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+
+
+<suite name="AI Mobile Automation Suite"
+       parallel="tests"
+       thread-count="1"
+       verbose="1">
+
+    <listeners>
+        <listener class-name="com.framework.core.listeners.TestListener"/>
+    </listeners>
+
+
+    <!--
+    ═══ SAUCE LABS — uncomment to run on cloud devices ═══
+    Picks devices from: devices.json → "remote" → "android"[0] / "ios"[0]
+    Credentials are embedded in serverUrl in devices.json
+    App must be uploaded to Sauce Storage first:
+      curl -u USERNAME:ACCESS_KEY -X POST "https://api.us-west-1.saucelabs.com/v1/storage/upload" \
+           -F "payload=@/path/to/app.apk" -F "name=app.apk"
+    -->
+
+    <test name="Sauce Labs Android - Login Tests">
+        <parameter name="environment" value="remote"/>
+        <parameter name="platform" value="android"/>
+        <parameter name="deviceIndex" value="0"/>
+        <classes>
+            <class name="com.framework.tests.ui.LoginTest"/>
+        </classes>
+    </test>
+
+    <!--<test name="Sauce Labs iOS - Login Tests">
+        <parameter name="environment" value="remote"/>
+        <parameter name="platform" value="ios"/>
+        <parameter name="deviceIndex" value="0"/>
+        <classes>
+            <class name="com.framework.tests.LoginTest"/>
+        </classes>
+    </test>-->
+
+</suite>
