@@ -31,11 +31,11 @@
         "appActivity": "com.thehomedepot.startup.activities.StartupActivity",
         "appPath": "storage:5acf97e0-1b14-4bc0-af0b-fa5aea7bfcbf",
         "noReset": false,
-        "serverUrl": "https://saidinesh307_:accb88d8-40d6-4dd6-b072-590e9827ab11@ondemand.us-west-1.saucelabs.com:443/wd/hub",
+        "serverUrl": "saucelabsurl",
         "cloudOptions": {
           "sauce:options": {
-            "username": "saidinesh307_",
-            "accessKey": "accb88d8-40d6-4dd6-b072-590e9827ab11",
+            "username": "username",
+            "accessKey": "accesskey",
             "appiumVersion": "latest",
             "name": "Android Test",
             "build": "Build-1"
