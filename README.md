@@ -29,6 +29,7 @@ A production-grade, thread-safe test automation framework supporting **Mobile UI
   - [GraphQL Client](#graphql-client)
 - [Self-Healing Engine](#self-healing-engine)
 - [Visual AI Regression](#visual-ai-regression)
+- [Retry Analyzer](#retry-analyzer)
 - [Reporting](#reporting)
   - [Extent Reports](#extent-reports)
   - [AI Analytics Dashboard](#ai-analytics-dashboard)
@@ -127,7 +128,9 @@ automation-framework/
 │   │   │   │   │   ├── IReporter.java                     # Reporter contract
 │   │   │   │   │   └── ISelfHealer.java                   # Self-healing contract
 │   │   │   │   ├── listeners/
-│   │   │   │   │   └── TestListener.java                  # TestNG listener (logs test lifecycle)
+│   │   │   │   │   ├── TestListener.java                  # TestNG listener (logs test lifecycle)
+│   │   │   │   │   ├── RetryAnalyzer.java                 # Auto-retries failed tests (configurable count)
+│   │   │   │   │   └── RetryTransformer.java              # Applies RetryAnalyzer to all tests globally
 │   │   │   │   ├── mobile/context/
 │   │   │   │   │   └── ContextSwitcher.java               # Native ↔ WebView context switching
 │   │   │   │   └── reports/
@@ -248,6 +251,9 @@ implicit.wait=10
 fluent.wait.timeout=10      # FluentWait max timeout (seconds)
 fluent.wait.polling=500     # FluentWait polling interval (milliseconds)
 fluent.wait.short.timeout=5 # Short FluentWait for quick checks
+
+# Retry
+retry.max.count=1           # 0 = disabled, 1 = retry once, 2 = retry twice, etc.
 
 # API
 api.base.url=https://api.example.com
@@ -671,6 +677,49 @@ Assert.assertTrue(result.passed(), "Visual regression detected: " + result.summa
 ```properties
 visual.tolerance=0.02   # 2% tolerance (default)
 ```
+
+---
+
+## Retry Analyzer
+
+The framework includes a built-in **Retry Analyzer** that automatically re-runs failed tests. The retry count is configurable via `config.properties` — no code changes needed.
+
+**Configuration (`config.properties`):**
+
+```properties
+retry.max.count=1    # 0 = disabled, 1 = retry once, 2 = retry twice, etc.
+```
+
+**Override at runtime:**
+
+```bash
+mvn test -Dretry.max.count=3
+```
+
+**How it works:**
+
+1. `RetryTransformer` (registered as a TestNG listener in `testng.xml`) automatically applies `RetryAnalyzer` to **every** test method at runtime — no need to add `@Test(retryAnalyzer = ...)` on each test
+2. When a test fails, `RetryAnalyzer.retry()` reads `retry.max.count` from config
+3. If retries remain → logs `🔄 RETRY [1/2]: testName [thread: ...]` and re-runs the test
+4. If all retries are exhausted → test is marked as **failed**
+
+**Key classes:**
+
+| Class              | Responsibility                                                         |
+|--------------------|------------------------------------------------------------------------|
+| `RetryAnalyzer`    | Implements `IRetryAnalyzer` — reads retry count from config, tracks retry state per test |
+| `RetryTransformer` | Implements `IAnnotationTransformer` — auto-applies `RetryAnalyzer` to all `@Test` methods globally |
+
+**TestNG listener registration (`testng.xml`):**
+
+```xml
+<listeners>
+    <listener class-name="com.framework.core.listeners.TestListener"/>
+    <listener class-name="com.framework.core.listeners.RetryTransformer"/>
+</listeners>
+```
+
+> **Note:** If a specific test already has a custom `retryAnalyzer` set via `@Test(retryAnalyzer = CustomRetry.class)`, the `RetryTransformer` will **not** override it.
 
 ---
 
