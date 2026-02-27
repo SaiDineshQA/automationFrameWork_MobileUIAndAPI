@@ -9,6 +9,7 @@
 
     <listeners>
         <listener class-name="com.framework.core.listeners.TestListener"/>
+        <listener class-name="com.framework.core.listeners.RetryTransformer"/>
     </listeners>
 
 

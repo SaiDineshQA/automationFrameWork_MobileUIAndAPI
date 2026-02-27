@@ -25,6 +25,7 @@
 
     <listeners>
         <listener class-name="com.framework.core.listeners.TestListener"/>
+        <listener class-name="com.framework.core.listeners.RetryTransformer"/>
     </listeners>
 
     <!-- ═══ Android Device 1: Pixel 9 Pro XL (devices.json → local.android[0]) ═══ -->
