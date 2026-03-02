@@ -1,6 +1,5 @@
-package com.framework.core.mobile.context;
+package com.framework.utils;
 
-import com.framework.utils.LoggerUtil;
 import io.appium.java_client.AppiumDriver;
 import io.appium.java_client.remote.SupportsContextSwitching;
 import org.openqa.selenium.NoSuchElementException;

@@ -6,39 +6,41 @@
 #   elementName:
 #     platform: type::value | type::value | ...
 #
-# Supported types: id | xpath | css | accessibility | classname | name | tagname
+# Selenium By types : id | xpath | css | classname | name | tagname
+# AppiumBy types    : accessibilityId | androidUIAutomator | iOSClassChain | iOSNsPredicate
+# Legacy alias      : accessibility (maps to AppiumBy.accessibilityId)
 #
 # OR logic (|): tries left-to-right until one succeeds
 # ─────────────────────────────────────────────────────
 
 usernameField:
   android: id::com.yourapp:id/username_input | xpath:://*[@resource-id='com.yourapp:id/username_input']
-  ios: accessibility::username_field | id::username_input
+  ios: accessibilityId::username_field | id::username_input
 
 passwordField:
   android: id::com.yourapp:id/password_input | xpath:://*[@resource-id='com.yourapp:id/password_input']
-  ios: accessibility::password_field | id::password_input
+  ios: accessibilityId::password_field | id::password_input
 
 loginButton:
   android: id::com.yourapp:id/login_btn | xpath://android.widget.Button[@text='Login'] | css::[content-desc='login_button']
-  ios: xpath:://XCUIElementTypeButton[@name='Login'] | accessibility::login_button | id::login_btn
+  ios: xpath:://XCUIElementTypeButton[@name='Login'] | accessibilityId::login_button | id::login_btn
 
 errorMessage:
   android: id::com.yourapp:id/error_text | xpath:://*[@resource-id='com.yourapp:id/error_text'] | css::.error-message
-  ios: accessibility::error_message_label | xpath:://XCUIElementTypeStaticText[@name='error_message']
+  ios: accessibilityId::error_message_label | xpath:://XCUIElementTypeStaticText[@name='error_message']
 
 forgotPasswordLink:
   android: id::com.yourapp:id/forgot_password | xpath:://android.widget.TextView[@text='Forgot Password?']
-  ios: accessibility::forgot_password_button | xpath:://XCUIElementTypeButton[contains(@name,'Forgot')]
+  ios: accessibilityId::forgot_password_button | xpath:://XCUIElementTypeButton[contains(@name,'Forgot')]
 
 appLogo:
-  common: xpath:://*[@content-desc='app_logo'] | css::[content-desc='app_logo'] | accessibility::app_logo
+  common: xpath:://*[@content-desc='app_logo'] | css::[content-desc='app_logo'] | accessibilityId::app_logo
 
 okayButton:
   android: id::com.thehomedepot.inhouse:id/url_picker_ok
-  ios: accessibility::okay_button | xpath:://XCUIElementTypeButton[@name='OK']
+  ios: accessibilityId::okay_button | xpath:://XCUIElementTypeButton[@name='OK']
 
 findStoreButton:
   android: id::com.thehomedepot.inhouses:id/findStoreButtons | xpath:://*[@text='Find Store']
-  ios: accessibility::find_store_button | xpath:://XCUIElementTypeButton[@name='Find Store']
-  web: accessibility::find_store_button | xpath:://XCUIElementTypeButton[@name='Find Store']
+  ios: accessibilityId::find_store_button | xpath:://XCUIElementTypeButton[@name='Find Store']
+  web: accessibilityId::find_store_button | xpath:://XCUIElementTypeButton[@name='Find Store']

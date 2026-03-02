@@ -354,7 +354,15 @@ elementName:
   common: type::value                          # fallback for any platform
 ```
 
-**Supported locator types:** `id`, `xpath`, `css`, `accessibility`, `classname`, `name`, `tagname`
+**Supported locator types:**
+
+| Category         | Types                                                              |
+|------------------|--------------------------------------------------------------------|
+| **Selenium `By`**  | `id`, `xpath`, `css`, `classname`, `name`, `tagname`              |
+| **`AppiumBy`** (mobile) | `accessibilityId`, `androidUIAutomator`, `iOSClassChain`, `iOSNsPredicate` |
+| **Legacy alias** | `accessibility` (maps to `AppiumBy.accessibilityId`)              |
+
+The framework automatically uses `AppiumBy` when a mobile-specific type is detected in YAML, and `By` for standard web types — no configuration needed.
 
 **OR logic (`|`):** The framework tries locators left-to-right. If the first fails, it tries the next, and so on.
 
@@ -363,14 +371,19 @@ elementName:
 ```yaml
 loginButton:
   android: id::com.yourapp:id/login_btn | xpath://android.widget.Button[@text='Login']
-  ios: xpath://XCUIElementTypeButton[@name='Login'] | accessibility::login_button
+  ios: xpath://XCUIElementTypeButton[@name='Login'] | accessibilityId::login_button
 
 findStoreButton:
   android: id::com.yourapp:id/findStoreButton | xpath:://*[@text='Find Store']
-  ios: accessibility::find_store_button
+  ios: accessibilityId::find_store_button
 
 appLogo:
-  common: xpath:://*[@content-desc='app_logo'] | accessibility::app_logo
+  common: xpath:://*[@content-desc='app_logo'] | accessibilityId::app_logo
+
+# iOS-specific AppiumBy examples:
+searchResults:
+  ios: iOSClassChain::**/XCUIElementTypeCell[`name BEGINSWITH "result"`]
+  android: androidUIAutomator::new UiSelector().resourceId("search_results")
 ```
 
 ### Writing a UI Test
@@ -414,11 +427,11 @@ public class ProductPage extends BasePage {
 ```yaml
 productTitle:
   android: id::com.yourapp:id/product_title | xpath:://*[@resource-id='com.yourapp:id/product_title']
-  ios: accessibility::product_title
+  ios: accessibilityId::product_title
 
 addToCartButton:
   android: id::com.yourapp:id/add_to_cart | xpath://android.widget.Button[@text='Add to Cart']
-  ios: xpath://XCUIElementTypeButton[@name='Add to Cart'] | accessibility::add_to_cart
+  ios: xpath://XCUIElementTypeButton[@name='Add to Cart'] | accessibilityId::add_to_cart
 ```
 
 3. **Use it in your test** — just declare with `@Inject`:

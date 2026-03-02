@@ -3,6 +3,7 @@ package com.framework.core.config;
 import com.framework.core.exceptions.LocatorNotFoundException;
 import com.framework.core.interfaces.ILocatorRepository;
 import com.framework.utils.LoggerUtil;
+import io.appium.java_client.AppiumBy;
 import org.openqa.selenium.By;
 
 import java.io.IOException;
@@ -21,14 +22,17 @@ import java.util.regex.Pattern;
  *
  *   cartIcon:
  *     android: xpath:://android.widget.ImageView[@content-desc='cart'] | css::[content-desc='cart']
- *     ios: id::cart_button | accessibility::cart_button
+ *     ios: accessibilityId::cart_button | id::cart_button
  *
  *   loginButton:
  *     common: id::login_btn | xpath:://button[@id='login_btn']
  *
  * Format: <type>::<value> | <type>::<value> | ...
  *
- * Supported types: id | xpath | css | accessibility | classname | name | tagname
+ * Supported types:
+ *   Selenium By     : id | xpath | css | classname | name | tagname
+ *   AppiumBy (mobile): accessibilityId | androidUIAutomator | iOSClassChain | iOSNsPredicate
+ *   Legacy alias    : accessibility (maps to AppiumBy.accessibilityId)
  *
  * OR logic (|):
  * - Framework tries locators left-to-right
@@ -213,13 +217,20 @@ public class YamlLocatorRepository implements ILocatorRepository {
             throw new LocatorNotFoundException("unknown", elementName + " (missing type or value)");
         }
         return switch (type.toLowerCase()) {
+            // ── Selenium By (web + mobile) ──
             case "id"            -> By.id(value);
             case "xpath"         -> By.xpath(value);
             case "css"           -> By.cssSelector(value);
-            case "accessibility" -> By.xpath("//*[@content-desc='" + value + "' or @name='" + value + "']");
             case "classname"     -> By.className(value);
             case "name"          -> By.name(value);
             case "tagname"       -> By.tagName(value);
+
+            // ── AppiumBy (mobile-specific) ──
+            case "accessibilityid", "accessibility" -> AppiumBy.accessibilityId(value);
+            case "androiduiautomator"               -> AppiumBy.androidUIAutomator(value);
+            case "iosclasschain"                    -> AppiumBy.iOSClassChain(value);
+            case "iosnspredicate"                   -> AppiumBy.iOSNsPredicateString(value);
+
             default -> throw new LocatorNotFoundException("unknown",
                     elementName + " (unsupported type: " + type + ")");
         };
@@ -251,13 +262,20 @@ public class YamlLocatorRepository implements ILocatorRepository {
 
         public By toBy(String elementName) {
             return switch (type.toLowerCase()) {
+                // ── Selenium By (web + mobile) ──
                 case "id"            -> By.id(value);
                 case "xpath"         -> By.xpath(value);
                 case "css"           -> By.cssSelector(value);
-                case "accessibility" -> By.xpath("//*[@content-desc='" + value + "' or @name='" + value + "']");
                 case "classname"     -> By.className(value);
                 case "name"          -> By.name(value);
                 case "tagname"       -> By.tagName(value);
+
+                // ── AppiumBy (mobile-specific) ──
+                case "accessibilityid", "accessibility" -> AppiumBy.accessibilityId(value);
+                case "androiduiautomator"               -> AppiumBy.androidUIAutomator(value);
+                case "iosclasschain"                    -> AppiumBy.iOSClassChain(value);
+                case "iosnspredicate"                   -> AppiumBy.iOSNsPredicateString(value);
+
                 default -> throw new LocatorNotFoundException("unknown",
                         elementName + " (unsupported type: " + type + ")");
             };

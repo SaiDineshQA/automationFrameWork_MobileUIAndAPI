@@ -1,6 +1,7 @@
 package com.framework.core.ai.healing;
 
 import com.framework.utils.LoggerUtil;
+import io.appium.java_client.AppiumBy;
 import org.openqa.selenium.By;
 
 import java.util.ArrayList;
@@ -66,6 +67,7 @@ public class AlternativeLocatorStrategy {
         // Step 2: Generate alternatives from each extracted value
         for (String value : extractedValues) {
             addAlternative(alternatives, seen, By.id(value));
+            addAlternative(alternatives, seen, AppiumBy.accessibilityId(value));
             addAlternative(alternatives, seen, By.xpath("//*[@resource-id='" + value + "']"));
             addAlternative(alternatives, seen,
                     By.xpath("//*[contains(@resource-id,'" + value + "')]"));
@@ -117,7 +119,7 @@ public class AlternativeLocatorStrategy {
                 // Parse CSS selectors: #id, .class, [attr='val']
                 extractCssValues(rawValue, values);
             }
-            case "accessibility" -> {
+            case "accessibility", "accessibilityid" -> {
                 values.add(rawValue);
             }
             case "classname", "name", "tagname" -> {
@@ -215,12 +217,18 @@ public class AlternativeLocatorStrategy {
      * "By.cssSelector: value" → "css"
      */
     private static String extractType(String locatorString) {
+        // Selenium By patterns
         if (locatorString.startsWith("By.id:")) return "id";
         if (locatorString.startsWith("By.xpath:")) return "xpath";
         if (locatorString.startsWith("By.cssSelector:")) return "css";
         if (locatorString.startsWith("By.className:")) return "classname";
         if (locatorString.startsWith("By.name:")) return "name";
         if (locatorString.startsWith("By.tagName:")) return "tagname";
+        // AppiumBy patterns
+        if (locatorString.contains("accessibilityId:") || locatorString.contains("accessibility id:")) return "accessibilityid";
+        if (locatorString.contains("androidUIAutomator:") || locatorString.contains("uiautomator:")) return "androiduiautomator";
+        if (locatorString.contains("iOSClassChain:") || locatorString.contains("classChain:")) return "iosclasschain";
+        if (locatorString.contains("iOSNsPredicate:") || locatorString.contains("predicate string:")) return "iosnspredicate";
         return "unknown";
     }
 
