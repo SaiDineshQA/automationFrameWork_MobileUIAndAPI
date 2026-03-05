@@ -34,6 +34,7 @@ A production-grade, thread-safe test automation framework supporting **Mobile UI
   - [Extent Reports](#extent-reports)
   - [AI Analytics Dashboard](#ai-analytics-dashboard)
 - [Parallel Execution](#parallel-execution)
+- [Appium Server Manager](#appium-server-manager)
 - [Cloud Execution (Sauce Labs)](#cloud-execution-sauce-labs)
 - [Thread Safety](#thread-safety)
 - [Design Principles](#design-principles)
@@ -111,7 +112,7 @@ automation-framework/
 │   │   │   │   │   └── graphql/
 │   │   │   │   │       └── GraphQLClient.java             # Fluent GraphQL client
 │   │   │   │   ├── config/
-│   │   │   │   │   ├── AbstractBase.java                  # Initializes driver, locatorRepo, healer, fluentWait
+│   │   │   │   │   ├── AbstractBase.java                  # Initializes driver, locatorRepo, healer, fluentWait, ElementUtil
 │   │   │   │   │   ├── ConfigManager.java                 # Loads config.properties (thread-safe)
 │   │   │   │   │   ├── DeviceConfig.java                  # POJO for device JSON entries
 │   │   │   │   │   ├── DeviceConfigManager.java           # Loads devices.json with round-robin support
@@ -119,6 +120,7 @@ automation-framework/
 │   │   │   │   │   └── YamlLocatorRepository.java         # Parses YAML locators with OR conditions
 │   │   │   │   ├── driver/
 │   │   │   │   │   ├── AppiumDriverWrapper.java           # IDriver implementation wrapping AppiumDriver
+│   │   │   │   │   ├── AppiumServerManager.java           # Auto-starts/stops Appium servers per thread (local only)
 │   │   │   │   │   ├── DriverFactory.java                 # Creates Android/iOS drivers from DeviceConfig
 │   │   │   │   │   └── DriverManager.java                 # ThreadLocal driver registry
 │   │   │   │   ├── exceptions/                            # Custom exceptions (DriverInit, Healing, Locator, Visual)
@@ -140,7 +142,7 @@ automation-framework/
 │   │   │   │           └── SmartAnalyticsReporter.java    # AI analytics dashboard generator
 │   │   │   ├── pages/
 │   │   │   │   ├── ui/                                    # Mobile UI page objects
-│   │   │   │   │   ├── BasePage.java                      # Abstract base (loc(), tap(), enterText(), isVisible(), etc.)
+│   │   │   │   │   ├── BasePage.java                      # Abstract base (loc() for raw By; element interactions via inherited 'element' field)
 │   │   │   │   │   ├── LoginPage.java                     # Login screen actions
 │   │   │   │   │   └── HomePage.java                      # Home screen actions
 │   │   │   │   └── api/                                   # API page objects (enum-based)
@@ -149,8 +151,9 @@ automation-framework/
 │   │   │   │       ├── GetUserInfoApi.java                # Fields enum for GET /users (nested JSON)
 │   │   │   │       └── CreateAccountApi.java              # Fields enum for POST /posts
 │   │   │   └── utils/
+│   │   │       ├── ElementUtil.java                       # Context-aware element interaction utility (find, tap, type, scroll, wait)
 │   │   │       ├── LoggerUtil.java                        # Log4j2 wrapper
-│   │   │       └── ScreenshotUtil.java                    # Thread-safe screenshot capture
+│   │   │       └── ScreenshotUtil.java                    # Thread-safe screenshot capture (pass, fail, skip)
 │   │   └── resources/
 │   │       ├── config/
 │   │       │   ├── config.properties                      # Framework settings (waits, platform, URLs)
@@ -188,7 +191,7 @@ automation-framework/
 |-------------------------|-------------------------------------------------------------------------|
 | **Java JDK**            | 17 or higher                                                            |
 | **Maven**               | 3.8+                                                                    |
-| **Appium Server**       | 2.x (for mobile UI tests) — `npm install -g appium`                     |
+| **Appium Server**       | 2.x installed (`npm install -g appium`) — auto-started by framework if `appium.auto.start=true` |
 | **Android SDK**         | Set `ANDROID_HOME` / `ANDROID_SDK_ROOT` env variable                    |
 | **Xcode** (macOS only)  | Required for iOS testing                                                |
 | **Emulator / Device**   | Android emulator or real device connected via ADB                       |
@@ -217,18 +220,39 @@ mvn compile
 #### From Command Line
 
 ```bash
-# Run local mobile UI tests
-mvn test -DsuiteXmlFile=src/test/resources/local-testng.xml
+# Run local mobile UI tests (default — uses local-testng.xml)
+mvn clean test
+
+# Run local tests (explicit profile)
+mvn clean test -Plocal
 
 # Run Sauce Labs cloud tests
-mvn test -DsuiteXmlFile=src/test/resources/sauce-testng.xml
+mvn clean test -Psauce
+
+# Run with a custom testng.xml file
+mvn clean test -DsuiteFile=src/test/resources/my-custom-testng.xml
 
 # Override platform/environment via system properties
-mvn test -Dplatform=ios -Denvironment=local
+mvn clean test -Dplatform=ios -Denvironment=local
 
-# Run a specific test class
-mvn test -Dtest=GetAccountDetailsAPITest
+# Run a specific test class (skips testng.xml suite)
+mvn clean test -Dtest=com.framework.tests.ui.LoginTest
+
+# Run a specific test class with retries
+mvn clean test -Dtest=com.framework.tests.ui.LoginTest -Dretry.max.count=3
+
+# Run API tests only
+mvn clean test -Dtest=com.framework.tests.api.GetAccountDetailsAPITest
 ```
+
+**Maven Profiles (defined in `pom.xml`):**
+
+| Profile   | Command              | Suite File              |
+|-----------|----------------------|-------------------------|
+| `local`   | `mvn test -Plocal`   | `local-testng.xml`      |
+| `sauce`   | `mvn test -Psauce`   | `sauce-testng.xml`      |
+| *(default)* | `mvn test`         | `local-testng.xml`      |
+| *(custom)* | `mvn test -DsuiteFile=path/to/file.xml` | Any custom XML |
 
 ---
 
@@ -246,16 +270,44 @@ platform=Android            # Android | iOS
 # Appium
 appium.server.url=http://127.0.0.1:4723
 
+# Selenium Grid (optional — route through Grid hub or Appium Node)
+grid.enabled=false
+# grid.node.name=node1     # optional: route to a specific node
+
 # Wait timeouts
 implicit.wait=10
+explicit.wait=20            # explicit wait timeout (seconds)
 fluent.wait.timeout=10      # FluentWait max timeout (seconds)
 fluent.wait.polling=500     # FluentWait polling interval (milliseconds)
 fluent.wait.short.timeout=5 # Short FluentWait for quick checks
+page.load.timeout=30        # page load timeout (seconds)
 
 # Retry
 retry.max.count=1           # 0 = disabled, 1 = retry once, 2 = retry twice, etc.
 
-# API
+# AI model configuration
+openai.api.key=YOUR_OPENAI_API_KEY   # OpenAI API key for AI features
+ai.model=gpt-4                       # AI model (gpt-4, gpt-3.5-turbo, etc.)
+visual.tolerance=0.02                 # Visual AI tolerance (2% = default)
+
+# Web browser configuration
+web.browser=chrome          # chrome | firefox | edge | safari
+web.headless=false          # true = headless mode (no browser UI)
+web.maximize=true           # true = maximize browser window on launch
+web.mobile.device=          # mobile device emulation (leave empty for desktop)
+web.grid.enabled=false      # true = run via Selenium Grid
+web.grid.hub.url=http://selenium-grid:4444/wd/hub  # Grid hub URL
+
+# WebDriverManager Auto-Download Settings
+# web.driver.version=120.0.6099.109   # Force specific driver version (optional)
+# web.driver.arch=64                  # Force architecture: 32, 64, arm64 (optional)
+# web.driver.cache.ttl=30             # Driver cache time-to-live in days (default: 30)
+# web.driver.proxy=http://proxy:8080  # Proxy for corporate networks (optional)
+
+# Android ChromeDriver path (optional — leave empty for WebDriverManager auto-download)
+# android.chromedriver.path=/path/to/chromedriver
+
+# API and GraphQL configuration
 api.base.url=https://api.example.com
 graphql.endpoint=https://api.example.com/graphql
 ```
@@ -333,13 +385,51 @@ The `${SAUCE_USERNAME}` and `${SAUCE_ACCESS_KEY}` placeholders are resolved from
 The framework uses a layered page object architecture:
 
 ```
-AbstractBase (constructor initializes driver, locatorRepo, healer, fluentWait)
-    └── BasePage (loc(), tap(), enterText(), isVisible(), findElement(), scroll, etc.)
+AbstractBase (constructor initializes driver, locatorRepo, healer, fluentWait, ElementUtil)
+    └── BasePage (loc() for raw By access)
         ├── LoginPage (typeUsername(), tapLogin(), loginWith(), etc.)
         └── HomePage (search(), tapCart(), logout(), etc.)
 ```
 
 **Key:** All dependencies are initialized **once** in the `AbstractBase` constructor — no manual `init()` calls needed. When Guice creates a page object, the constructor runs and pulls the driver from `DriverManager` (ThreadLocal).
+
+**`ElementUtil`** — a context-aware, non-static utility class created per page object. It holds the page context (driver, locatorRepo, healer, fluentWait, pageName, platform) and exposes all element interactions:
+
+```java
+// Inside page classes — use the inherited 'element' field
+element.tap("loginButton");
+element.enterText("usernameField", "admin");
+element.getText("headerLabel");
+element.isVisible("banner");
+element.isPresent("errorMessage");
+element.waitForClickable("submitButton");
+element.waitForVisible("loader");
+element.waitForInvisible(By.id("spinner"));
+element.scrollDown();
+element.scrollUp();
+element.scrollToElement("footer");
+element.findElement("searchBar");      // returns WebElement
+element.loc("loginButton");            // returns raw By object
+```
+
+**Available `ElementUtil` methods:**
+
+| Method                                    | Returns       | Description                                     |
+|-------------------------------------------|---------------|-------------------------------------------------|
+| `element.findElement("name")`             | `WebElement`  | Finds element using YAML OR strategies + healing |
+| `element.tap("name")`                     | `void`        | Waits for clickable, then clicks                |
+| `element.enterText("name", "text")`       | `void`        | Waits for visible, clears, then types           |
+| `element.getText("name")`                 | `String`      | Waits for visible, returns text                 |
+| `element.isVisible("name")`               | `boolean`     | Returns true if element is displayed            |
+| `element.isPresent("name")`               | `boolean`     | Returns true if element exists in DOM           |
+| `element.waitForVisible("name")`          | `WebElement`  | FluentWait until element is visible             |
+| `element.waitForClickable("name")`        | `WebElement`  | FluentWait until element is clickable           |
+| `element.waitForInvisible(By)`            | `void`        | FluentWait until element disappears             |
+| `element.waitFor(condition, "desc")`      | `V`           | Custom FluentWait with any ExpectedCondition    |
+| `element.scrollDown()`                    | `void`        | Mobile scroll down                              |
+| `element.scrollUp()`                      | `void`        | Mobile scroll up                                |
+| `element.scrollToElement("name")`         | `void`        | Scrolls until element is in view                |
+| `element.loc("name")`                     | `By`          | Returns raw Selenium/Appium By locator          |
 
 ### YAML Locators with OR Conditions
 
@@ -394,8 +484,8 @@ public class LoginTest extends BaseTest {
     @Test(description = "Login page loads successfully")
     public void loginPageLoads() {
         step("Verify login page is loaded");
-        loginPage.tap(LoginPage.OK_BUTTON);
-        Assert.assertTrue(loginPage.isVisible(LoginPage.FIND_STORE_BUTTON), "Login page is not visible");
+        loginPage.element.tap(LoginPage.OK_BUTTON);
+        Assert.assertTrue(loginPage.element.isVisible(LoginPage.FIND_STORE_BUTTON), "Login page is not visible");
     }
 }
 ```
@@ -403,10 +493,10 @@ public class LoginTest extends BaseTest {
 **What happens behind the scenes:**
 
 1. `BaseTest.@BeforeMethod` → creates driver from `devices.json`, stores in `DriverManager` (ThreadLocal)
-2. Guice injects `loginPage` → `AbstractBase` constructor pulls driver, initializes `fluentWait`, `locatorRepo`, `healer`
-3. `loginPage.tap("okayButton")` → `BasePage.findElement()` → tries all YAML OR strategies with FluentWait
+2. Guice injects `loginPage` → `AbstractBase` constructor pulls driver, initializes `fluentWait`, `locatorRepo`, `healer`, `ElementUtil`
+3. `loginPage.element.tap("okayButton")` → `ElementUtil.findElement()` → tries all YAML OR strategies with FluentWait
 4. If all YAML strategies fail → Self-Healing kicks in, generating alternative locators
-5. `BaseTest.@AfterMethod` → logs result to Extent Report, captures screenshot on failure, quits driver
+5. `BaseTest.@AfterMethod` → logs result to Extent Report, captures screenshot (pass, fail, or skip), quits driver
 
 ### Adding a New Page
 
@@ -417,8 +507,8 @@ public class ProductPage extends BasePage {
     private static final String PRODUCT_TITLE = "productTitle";
     private static final String ADD_TO_CART   = "addToCartButton";
 
-    public String getProductTitle() { return getText(PRODUCT_TITLE); }
-    public void addToCart()         { tap(ADD_TO_CART); }
+    public String getProductTitle() { return element.getText(PRODUCT_TITLE); }
+    public void addToCart()         { element.tap(ADD_TO_CART); }
 }
 ```
 
@@ -636,7 +726,7 @@ When all YAML OR strategies fail to find an element, the **Self-Healing Engine**
 **Healing flow:**
 
 ```
-1. BasePage.findElement("loginButton")
+1. ElementUtil.findElement("loginButton")
     ├── Try YAML OR strategy #1 (id::com.app:id/login_btn)        → ❌ Not Found
     ├── Try YAML OR strategy #2 (xpath://...[@text='Login'])       → ❌ Not Found
     ├── Try YAML OR strategy #3 (css::[content-desc='login_btn']) → ❌ Not Found
@@ -757,6 +847,18 @@ Generated at: `test-output/analytics/analytics_<timestamp>.html`
 - Self-healing statistics (how many locators were healed)
 - AI-generated insights and recommendations
 
+### Screenshots
+
+Screenshots are captured automatically for **every test outcome** — pass, fail, and skip:
+
+| Outcome  | Filename Pattern                         | Attached To Report |
+|----------|------------------------------------------|--------------------|
+| **FAIL** | `testName_FAILURE_threadName_HHmmss.png` | ✅ Embedded as failure screenshot |
+| **PASS** | `testName_PASS_threadName_HHmmss.png`    | ✅ Logged as info |
+| **SKIP** | `testName_SKIP_threadName_HHmmss.png`    | ✅ Logged as info |
+
+All screenshots are saved to `test-output/screenshots/`. Thread name and timestamp are embedded in filenames to prevent collisions during parallel execution.
+
 ---
 
 ## Parallel Execution
@@ -796,6 +898,103 @@ The framework is designed for parallel execution from the ground up:
 
 ---
 
+## Appium Server Manager
+
+The framework includes a built-in **Appium Server Manager** that automatically starts and stops a local Appium server — **no manual `appium` command needed**. A single Appium server handles all parallel threads; each thread creates its own isolated driver session on the shared server.
+
+### Architecture
+
+```
+┌──────────────────────────────────────────────────────┐
+│         ONE Appium Server (port 4723)                 │
+│                                                        │
+│  ┌───────────┐  ┌───────────┐  ┌───────────┐         │
+│  │ Session 1  │  │ Session 2  │  │ Session 3  │         │
+│  │ (Thread-1) │  │ (Thread-2) │  │ (Thread-3) │         │
+│  │ Device A   │  │ Device B   │  │ Device C   │         │
+│  └───────────┘  └───────────┘  └───────────┘         │
+└──────────────────────────────────────────────────────┘
+```
+
+- **One server process** — started once in `@BeforeSuite`, shared by all threads
+- **Multiple driver sessions** — each thread creates its own `AppiumDriver` session (isolated via `ThreadLocal` in `DriverManager`)
+- **Appium 2.x** natively supports concurrent sessions on a single server
+- **Resource efficient** — only one Node.js process, not one per thread
+
+### Lifecycle
+
+```
+@BeforeSuite
+    └── AppiumServerManager.start()          ← starts ONE server on port 4723
+
+@BeforeMethod (Thread-1)
+    ├── deviceConfig.setServerUrl(:4723)     ← all threads point to same server
+    └── DriverFactory.createDriver()         ← creates driver SESSION 1
+
+@BeforeMethod (Thread-2)  ← parallel
+    ├── deviceConfig.setServerUrl(:4723)     ← same server
+    └── DriverFactory.createDriver()         ← creates driver SESSION 2
+
+@AfterMethod (each thread)
+    └── DriverManager.quitDriver()           ← quits only THIS thread's session
+
+@AfterSuite
+    └── AppiumServerManager.stop()           ← stops the ONE server
+```
+
+### Configuration
+
+In `config.properties`:
+
+```properties
+appium.auto.start=true          # true = auto-start, false = manual start (default: false)
+appium.base.port=4723           # Port for the Appium server
+appium.startup.timeout=120      # Max seconds to wait for server to start
+# appium.path=                  # Custom appium JS path (empty = auto-detect from PATH)
+```
+
+### Behavior by Environment
+
+| Environment | `appium.auto.start=true` | `appium.auto.start=false` |
+|-------------|--------------------------|---------------------------|
+| **local**   | ✅ Auto-starts one server | ❌ User must start Appium manually |
+| **remote**  | ❌ Skipped (connects to cloud URL) | ❌ Skipped (connects to cloud URL) |
+
+### Cross-Platform Support (macOS + Windows)
+
+The manager automatically configures the Appium process environment:
+
+| OS | What it does |
+|----|-------------|
+| **macOS / Linux** | Adds `/opt/homebrew/bin`, `/usr/local/bin`, `~/.nvm`, `~/.volta`, `~/.fnm` to PATH; sets `ANDROID_HOME` |
+| **Windows** | Adds `%APPDATA%\npm`, `%LOCALAPPDATA%\Programs\Volta\bin`, `%ProgramFiles%\nodejs` to PATH; sets `ANDROID_HOME` |
+
+### Custom Appium Path
+
+If Appium is not on your PATH (e.g., installed in a custom location):
+
+```properties
+# macOS (Homebrew)
+appium.path=/opt/homebrew/lib/node_modules/appium/build/lib/main.js
+
+# Windows
+appium.path=C:\\Users\\user\\AppData\\Roaming\\npm\\node_modules\\appium\\build\\lib\\main.js
+```
+
+Leave `appium.path` empty (default) to auto-detect from PATH.
+
+### Thread Safety
+
+| Concern | How it's handled |
+|---------|-----------------|
+| Server start | `synchronized` block with double-checked locking — only one thread starts the server |
+| Server reference | `volatile` field — all threads see the same running instance |
+| Driver isolation | Each thread creates its own `AppiumDriver` session → stored in `ThreadLocal` via `DriverManager` |
+| Session cleanup | `@AfterMethod` quits only the current thread's driver session; server stays running |
+| Port probe | `ServerSocket` check before starting — automatically finds a free port |
+
+---
+
 ## Cloud Execution (Sauce Labs)
 
 1. **Upload your app** to Sauce Labs Storage:
@@ -819,7 +1018,7 @@ export SAUCE_ACCESS_KEY=your_access_key
 4. **Run:**
 
 ```bash
-mvn test -DsuiteXmlFile=src/test/resources/sauce-testng.xml
+mvn clean test -Psauce
 ```
 
 The framework automatically:
@@ -836,6 +1035,8 @@ Every component is designed for safe parallel execution:
 | Component                | Thread Safety Mechanism                                         |
 |--------------------------|-----------------------------------------------------------------|
 | `DriverManager`          | `ThreadLocal<IDriver>` — each thread has its own driver         |
+| `AppiumServerManager`    | `synchronized` + `volatile` — one server, double-checked locking on start |
+| `ElementUtil`            | Per-instance, per-page object — holds only its own page's context |
 | `ExtentReporter`         | `ThreadLocal<ExtentTest>` — each thread has its own test node   |
 | `SelfHealingDriver`      | `ThreadLocal<List<String>>` for healing logs                    |
 | `HealingCache`           | `ConcurrentHashMap` for locator cache                           |
@@ -843,7 +1044,7 @@ Every component is designed for safe parallel execution:
 | `DeviceConfigManager`    | `ConcurrentHashMap` cache + `AtomicInteger` round-robin counter |
 | `YamlLocatorRepository`  | `ConcurrentHashMap` for parsed YAML cache                       |
 | `ConfigManager`          | `Properties` loaded once at class initialization (immutable)    |
-| `ScreenshotUtil`         | Stateless — thread name embedded in filename to prevent collision|
+| `ScreenshotUtil`         | Stateless — thread name + timestamp in filename prevents collision |
 | Page objects             | Per-instance, per-method (Guice creates new instances each `@BeforeMethod`) |
 
 ---

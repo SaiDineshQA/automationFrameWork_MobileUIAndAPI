@@ -100,4 +100,12 @@ public class SelfHealingDriver implements ISelfHealer {
     public void clearLog() {
         threadLog.get().clear();
     }
+
+    /**
+     * Removes the ThreadLocal entry entirely — prevents memory leaks in thread pools.
+     * Call this in @AfterMethod after reading the healing log.
+     */
+    public void removeLog() {
+        threadLog.remove();
+    }
 }

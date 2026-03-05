@@ -16,74 +16,138 @@ import java.util.function.Function;
  *
  * All dependencies (driver, locatorRepo, healer, fluentWait) are initialized
  * once in the AbstractBase constructor — no manual init calls needed anywhere.
+ *
+ * Parameterized Locators (varargs):
+ * Every element method accepts String... replacements as the last parameter.
+ * If YAML locators contain %s placeholders, they get replaced sequentially at runtime.
+ * If no placeholders exist, the method works exactly as before — no impact.
+ *
+ * YAML:
+ *   menuItem:
+ *     android: xpath:://*[@text='%s'] | accessibilityId::%s
+ *
+ * Java:
+ *   tap("menuItem", "Settings")    -> resolves to: xpath:://*[@text='Settings']
+ *   tap("loginButton")             -> no placeholders, works as before
  */
 public abstract class BasePage extends AbstractBase {
 
     // ── Locator resolution ────────────────────────────────────
 
-    protected By loc(String elementName) {
-        return locatorRepo.getLocator(getPageName(), elementName, platform);
+    /**
+     * Returns the primary By locator for an element, with optional placeholder replacement.
+     *
+     * @param elementName  YAML key
+     * @param replacements values to substitute for %s placeholders (optional)
+     */
+    protected By loc(String elementName, String... replacements) {
+        List<YamlLocatorRepository.LocatorStrategy> strategies =
+                locatorRepo.getAllStrategies(getPageName(), elementName, platform);
+        if (strategies.isEmpty()) {
+            return locatorRepo.getLocator(getPageName(), elementName, platform);
+        }
+        return strategies.get(0).resolve(replacements).toBy(elementName);
     }
 
-    // ── Element interactions with FluentWait ──────────────────
+    // ── Core element finder ───────────────────────────────────
 
-    protected WebElement findElement(String elementName) {
-        List<YamlLocatorRepository.LocatorStrategy> yamlStrategies =
+    /**
+     * Finds an element using all YAML OR strategies, with optional placeholder replacement.
+     * Tries each strategy left-to-right with FluentWait polling.
+     * If all fail, invokes self-healing.
+     *
+     * @param elementName  YAML key (e.g., "loginButton")
+     * @param replacements values to substitute for %s placeholders in locator values (optional)
+     * @return the found WebElement
+     */
+    protected WebElement findElement(String elementName, String... replacements) {
+        List<YamlLocatorRepository.LocatorStrategy> rawStrategies =
                 locatorRepo.getAllStrategies(getPageName(), elementName, platform);
+
+        // Resolve placeholders in every strategy
+        List<YamlLocatorRepository.LocatorStrategy> strategies = rawStrategies.stream()
+                .map(s -> s.resolve(replacements))
+                .toList();
 
         // Step 1: Try all YAML OR strategies with FluentWait (polling + timeout)
         try {
             return fluentWait.until(d -> {
-                for (YamlLocatorRepository.LocatorStrategy strategy : yamlStrategies) {
+                for (YamlLocatorRepository.LocatorStrategy strategy : strategies) {
                     try {
                         return driver.findElement(strategy.toBy(elementName));
                     } catch (NoSuchElementException ignored) {
                     }
                 }
                 throw new NoSuchElementException(
-                        "None of the " + yamlStrategies.size() + " YAML strategies found element: " + elementName);
+                        "None of the " + strategies.size() + " YAML strategies found element: " + elementName);
             });
         } catch (Exception e) {
             LoggerUtil.warn("[Page] All YAML strategies exhausted for '" + elementName
                     + "'. Invoking self-healing...");
         }
 
-        // Step 2: All YAML strategies failed — invoke self-healing with ALL locators
-      /*  List<By> allFailedLocators = new java.util.ArrayList<>();
-        for (YamlLocatorRepository.LocatorStrategy strategy : yamlStrategies) {
-            allFailedLocators.add(strategy.toBy(elementName));
-        }
-        return healer.heal(allFailedLocators, elementName, driver);*/
-        return null;
+        // Step 2: All YAML strategies failed — invoke self-healing with ALL resolved locators
+        List<By> allFailedLocators = strategies.stream()
+                .map(s -> s.toBy(elementName))
+                .toList();
+        return healer.heal(allFailedLocators, elementName, driver);
     }
 
-    public void tap(String elementName) {
+    // ── Element interactions ──────────────────────────────────
+
+    /**
+     * Taps (clicks) an element.
+     * @param elementName  YAML key
+     * @param replacements values for %s placeholders — optional
+     */
+    public void tap(String elementName, String... replacements) {
         LoggerUtil.debug("[Page] Tapping: " + elementName);
-        waitForClickable(elementName).click();
+        waitForClickable(elementName, replacements).click();
     }
 
-    protected void enterText(String elementName, String text) {
+    /**
+     * Enters text into an element (clears first).
+     * @param elementName  YAML key
+     * @param text         text to type
+     * @param replacements values for %s placeholders — optional
+     */
+    protected void enterText(String elementName, String text, String... replacements) {
         LoggerUtil.debug("[Page] Entering text in: " + elementName + " → " + text);
-        WebElement element = waitForVisible(elementName);
+        WebElement element = waitForVisible(elementName, replacements);
         element.clear();
         element.sendKeys(text);
     }
 
-    protected String getText(String elementName) {
-        return waitForVisible(elementName).getText();
+    /**
+     * Gets text from an element.
+     * @param elementName  YAML key
+     * @param replacements values for %s placeholders — optional
+     */
+    protected String getText(String elementName, String... replacements) {
+        return waitForVisible(elementName, replacements).getText();
     }
 
-    public boolean isVisible(String elementName) {
+    /**
+     * Checks if an element is visible on screen.
+     * @param elementName  YAML key
+     * @param replacements values for %s placeholders — optional
+     */
+    public boolean isVisible(String elementName, String... replacements) {
         try {
-            return findElement(elementName).isDisplayed();
+            return findElement(elementName, replacements).isDisplayed();
         } catch (Exception e) {
             return false;
         }
     }
 
-    protected boolean isPresent(String elementName) {
+    /**
+     * Checks if an element exists in the DOM (may not be visible).
+     * @param elementName  YAML key
+     * @param replacements values for %s placeholders — optional
+     */
+    protected boolean isPresent(String elementName, String... replacements) {
         try {
-            findElement(elementName);
+            findElement(elementName, replacements);
             return true;
         } catch (Exception e) {
             return false;
@@ -92,18 +156,18 @@ public abstract class BasePage extends AbstractBase {
 
     // ── FluentWait strategies ─────────────────────────────────
 
-    protected WebElement waitForVisible(String elementName) {
-        return findElement(elementName);
+    protected WebElement waitForVisible(String elementName, String... replacements) {
+        return findElement(elementName, replacements);
     }
 
-    protected WebElement waitForClickable(String elementName) {
-        WebElement element = findElement(elementName);
+    protected WebElement waitForClickable(String elementName, String... replacements) {
+        WebElement element = findElement(elementName, replacements);
         fluentWait.until(ExpectedConditions.elementToBeClickable(element));
         return element;
     }
 
-    protected void waitForInvisible(String elementName) {
-        fluentWait.until(ExpectedConditions.invisibilityOfElementLocated(loc(elementName)));
+    protected void waitForInvisible(String elementName, String... replacements) {
+        fluentWait.until(ExpectedConditions.invisibilityOfElementLocated(loc(elementName, replacements)));
     }
 
     protected <V> V waitFor(Function<WebDriver, V> condition, String description) {
@@ -121,13 +185,11 @@ public abstract class BasePage extends AbstractBase {
         executeScript("mobile: scroll", java.util.Map.of("direction", "up"));
     }
 
-    protected void scrollToElement(String elementName) {
-        executeScript("arguments[0].scrollIntoView(true);", findElement(elementName));
+    protected void scrollToElement(String elementName, String... replacements) {
+        executeScript("arguments[0].scrollIntoView(true);", findElement(elementName, replacements));
     }
 
     private void executeScript(String script, Object... args) {
         ((JavascriptExecutor) driver.getUnderlyingDriver()).executeScript(script, args);
     }
-
-
 }

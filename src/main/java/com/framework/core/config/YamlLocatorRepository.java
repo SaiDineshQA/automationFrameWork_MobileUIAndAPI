@@ -260,6 +260,30 @@ public class YamlLocatorRepository implements ILocatorRepository {
             this.value = value;
         }
 
+        /**
+         * Resolves {@code %s} placeholders in the locator value using String.format.
+         *
+         * If YAML has:  xpath:://*[@text='%s']
+         * And call is:  tap("menuItem", "Settings")
+         * Result:       xpath:://*[@text='Settings']
+         *
+         * Multiple placeholders are replaced sequentially:
+         *   xpath:://*[@text='%s' and @index='%s']  +  ("John", "3")
+         *   → xpath:://*[@text='John' and @index='3']
+         *
+         * If no placeholders or no replacements → returns this (unchanged).
+         *
+         * @param replacements varargs values to substitute for %s placeholders
+         * @return a new LocatorStrategy with resolved value, or this if nothing to replace
+         */
+        public LocatorStrategy resolve(String... replacements) {
+            if (replacements == null || replacements.length == 0 || !value.contains("%s")) {
+                return this;
+            }
+            String resolved = String.format(value, (Object[]) replacements);
+            return new LocatorStrategy(type, resolved);
+        }
+
         public By toBy(String elementName) {
             return switch (type.toLowerCase()) {
                 // ── Selenium By (web + mobile) ──

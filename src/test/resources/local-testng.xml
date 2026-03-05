@@ -38,43 +38,4 @@
         </classes>
     </test>
 
-   <!-- &lt;!&ndash; ═══ Android Device 2: Pixel 9 (devices.json → local.android[1]) ═══ &ndash;&gt;
-    <test name="Android Device 2 - Login Tests">
-        <parameter name="environment" value="local"/>
-        <parameter name="platform" value="android"/>
-        <parameter name="deviceIndex" value="1"/>
-        <classes>
-            <class name="com.framework.tests.LoginTest"/>
-        </classes>
-    </test>-->
-
-    <!--
-    ═══ SAUCE LABS — uncomment to run on cloud devices ═══
-    Picks devices from: devices.json → "remote" → "android"[0] / "ios"[0]
-    Credentials are embedded in serverUrl in devices.json
-    App must be uploaded to Sauce Storage first:
-      curl -u USERNAME:ACCESS_KEY -X POST "https://api.us-west-1.saucelabs.com/v1/storage/upload" \
-           -F "payload=@/path/to/app.apk" -F "name=app.apk"
-    -->
-
-    <!--
-    <test name="Sauce Labs Android - Login Tests">
-        <parameter name="environment" value="remote"/>
-        <parameter name="platform" value="android"/>
-        <parameter name="deviceIndex" value="0"/>
-        <classes>
-            <class name="com.framework.tests.LoginTest"/>
-        </classes>
-    </test>
-
-    <test name="Sauce Labs iOS - Login Tests">
-        <parameter name="environment" value="remote"/>
-        <parameter name="platform" value="ios"/>
-        <parameter name="deviceIndex" value="0"/>
-        <classes>
-            <class name="com.framework.tests.LoginTest"/>
-        </classes>
-    </test>
-    -->
-
 </suite>
