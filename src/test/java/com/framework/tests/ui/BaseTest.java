@@ -1,11 +1,11 @@
 package com.framework.tests.ui;
 
-import com.framework.core.ai.healing.SelfHealingDriver;
 import com.framework.core.ai.visual.VisualAIEngine;
 import com.framework.core.config.ConfigManager;
 import com.framework.core.config.DeviceConfig;
 import com.framework.core.config.DeviceConfigManager;
 import com.framework.core.config.FrameworkModule;
+import com.framework.core.driver.AppiumServerManager;
 import com.framework.core.driver.DriverFactory;
 import com.framework.core.driver.DriverManager;
 import com.framework.core.interfaces.IDriver;
@@ -61,6 +61,13 @@ public abstract class BaseTest {
     @BeforeSuite(alwaysRun = true)
     public void suiteSetup() {
         reporter.initReport();
+
+        // Start a single shared Appium server for all threads (local execution only)
+        String env = ConfigManager.get("environment", "local");
+        if (AppiumServerManager.isEnabled(env)) {
+            AppiumServerManager.start();
+        }
+
         LoggerUtil.info("═══════ SUITE STARTED ═══════");
     }
 
@@ -88,12 +95,17 @@ public abstract class BaseTest {
         LoggerUtil.info("▶ [" + Thread.currentThread().getName() + "] " + testName
                 + " → " + deviceConfig);
 
-        // 3. Create driver and store in ThreadLocal
+        // 3. Override serverUrl with auto-started Appium server (if enabled)
+        if (AppiumServerManager.isRunning()) {
+            deviceConfig.setServerUrl(AppiumServerManager.getUrl().toString());
+        }
+
+        // 4. Create driver and store in ThreadLocal
         IDriver iDriver = DriverFactory.createDriver(deviceConfig);
         DriverManager.setDriver(iDriver);
         this.driver = (AppiumDriver) iDriver.getUnderlyingDriver();
 
-        // 4. Guice injection — creates page objects AFTER driver is ready
+        // 5. Guice injection — creates page objects AFTER driver is ready
         //    AbstractBase constructor → DriverManager.getDriver() ✅
         Injector injector = Guice.createInjector(new FrameworkModule());
         injector.injectMembers(this);
@@ -104,38 +116,44 @@ public abstract class BaseTest {
     public void methodTeardown(ITestResult result) {
         String name = result.getMethod().getMethodName();
 
-        switch (result.getStatus()) {
-            case ITestResult.FAILURE -> {
-                String screenshot = ScreenshotUtil.capture(name + "_FAILURE");
-                reporter.logFail(result.getThrowable(), screenshot);
-
-                SelfHealingDriver healer = new SelfHealingDriver();
-                if (!healer.getHealingLog().isEmpty()) {
-                    reporter.logInfo("Healing events: " + healer.getHealingLog());
+        try {
+            switch (result.getStatus()) {
+                case ITestResult.FAILURE -> {
+                    String screenshot = ScreenshotUtil.capture(name + "_FAILURE");
+                    reporter.logFail(result.getThrowable(), screenshot);
+                    LoggerUtil.error("❌ FAILED: " + name);
                 }
-                LoggerUtil.error("❌ FAILED: " + name);
+                case ITestResult.SUCCESS -> {
+                    reporter.logPass("Test completed successfully");
+                    LoggerUtil.info("✅ PASSED: " + name);
+                }
+                case ITestResult.SKIP -> {
+                    String reason = result.getThrowable() != null
+                            ? result.getThrowable().getMessage() : "no reason";
+                    reporter.logSkip(reason);
+                    LoggerUtil.warn("⏭ SKIPPED: " + name);
+                }
             }
-            case ITestResult.SUCCESS -> {
-                reporter.logPass("Test completed successfully");
-                LoggerUtil.info("✅ PASSED: " + name);
-            }
-            case ITestResult.SKIP -> {
-                String reason = result.getThrowable() != null
-                        ? result.getThrowable().getMessage() : "no reason";
-                reporter.logSkip(reason);
-                LoggerUtil.warn("⏭ SKIPPED: " + name);
-            }
-        }
 
-        SmartAnalyticsReporter.record(result);
-        reporter.flush();
-        DriverManager.quitDriver();
+            SmartAnalyticsReporter.record(result);
+        } catch (Exception e) {
+            LoggerUtil.error("[BaseTest] Error during teardown reporting: " + e.getMessage());
+        } finally {
+            // Always flush reporter and quit driver — even if reporting above failed
+            try { reporter.flush(); } catch (Exception ignored) {}
+            DriverManager.quitDriver();
+
+            // Clear stale references for this test method
+            this.driver       = null;
+            this.deviceConfig = null;
+        }
     }
 
     @AfterSuite(alwaysRun = true)
     public void suiteTeardown() {
         reporter.flush();
         SmartAnalyticsReporter.generateReport();
+        AppiumServerManager.stop();
         LoggerUtil.info("═══════ SUITE COMPLETED ═══════");
     }
 

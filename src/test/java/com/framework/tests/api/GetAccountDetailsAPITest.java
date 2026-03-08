@@ -22,17 +22,18 @@ import java.util.Map;
 public class GetAccountDetailsAPITest extends BaseApiTest {
 
     private static final String BASE_URL = "https://jsonplaceholder.typicode.com";
+    private static final String RSRC_PATH = "/posts/1";
     private Response response = null;
 
     @Test(description = "REST API - GET post with field validation")
     public void testGetRequest() {
         step("Send GET request to /posts/1");
-        response = RestApiClient.get(BASE_URL, "/todos/1");
+        response = RestApiClient.get(BASE_URL, RSRC_PATH);
         getAccountDetailsApi.setResponse(response);
 
-        int userId = getAccountDetailsApi.getInt(GetAccountDetailsApi.Fields.USER_ID);
-        String title = getAccountDetailsApi.getString(GetAccountDetailsApi.Fields.TITLE);
-        int id = getAccountDetailsApi.getInt(GetAccountDetailsApi.Fields.ID);
+        int userId = getAccountDetailsApi.getInt("USER_ID");
+        String title = getAccountDetailsApi.getString("TITLE");
+        int id = getAccountDetailsApi.getInt("ID");
 
         Assert.assertEquals(getAccountDetailsApi.getStatusCode(), 200, "Status code mismatch");
         Assert.assertNotNull(title, "Title should not be null");

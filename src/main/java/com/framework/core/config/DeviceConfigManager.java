@@ -172,11 +172,13 @@ public final class DeviceConfigManager {
                         device.setEnvironment(env);
                         device.setPlatform(platform);
 
-                        // Resolve relative app paths to absolute
-                        if (device.getAppPath() != null && !device.getAppPath().isEmpty()
-                                && !device.getAppPath().startsWith("/")
-                                && !device.getAppPath().startsWith("storage:") && !device.getAppPath().startsWith("sauce-storage")) {
-                            device.setAppPath(System.getProperty("user.dir") + "/" + device.getAppPath());
+                        // Resolve relative app paths to absolute (cross-platform)
+                        String appPath = device.getAppPath();
+                        if (appPath != null && !appPath.isEmpty()
+                                && !appPath.startsWith("/")
+                                && !appPath.matches("^[A-Za-z]:.*")   // Windows absolute (C:\...)
+                                && !appPath.startsWith("storage:") && !appPath.startsWith("sauce-storage")) {
+                            device.setAppPath(System.getProperty("user.dir") + java.io.File.separator + appPath);
                         }
                     }
                 }

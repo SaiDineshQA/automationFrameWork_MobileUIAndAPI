@@ -1,5 +1,6 @@
 package com.framework.pages.ui;
 import com.framework.core.config.AbstractBase;
+import com.framework.core.config.ConfigManager;
 import com.framework.core.config.YamlLocatorRepository;
 import com.framework.utils.LoggerUtil;
 import org.openqa.selenium.By;
@@ -82,6 +83,11 @@ public abstract class BasePage extends AbstractBase {
                         "None of the " + strategies.size() + " YAML strategies found element: " + elementName);
             });
         } catch (Exception e) {
+            // Step 2: All YAML strategies failed
+            if (!ConfigManager.getBoolean("self.healing.enabled", true)) {
+                throw new NoSuchElementException(
+                        "Element '" + elementName + "' not found. Self-healing is disabled (self.healing.enabled=false).");
+            }
             LoggerUtil.warn("[Page] All YAML strategies exhausted for '" + elementName
                     + "'. Invoking self-healing...");
         }

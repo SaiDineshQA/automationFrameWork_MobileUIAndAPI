@@ -38,4 +38,14 @@
         </classes>
     </test>
 
+   <!-- &lt;!&ndash; ═══ iOS Device 1: iPhone 16e (devices.json → local.iOS[0]) ═══ &ndash;&gt;
+    <test name="iOS Device 1 - Login Tests">
+        <parameter name="environment" value="local"/>
+        <parameter name="platform" value="ios"/>
+        <parameter name="deviceIndex" value="0"/>
+        <classes>
+            <class name="com.framework.tests.ui.LoginTest"/>
+        </classes>
+    </test>-->
+
 </suite>

@@ -3,6 +3,7 @@ package com.framework.tests.api;
 import com.framework.core.api.rest.RestApiClient;
 import com.framework.pages.api.CreateAccountApi;
 import com.framework.tests.ui.BaseTest;
+import com.framework.utils.JsonSchemaUtil;
 import io.restassured.response.Response;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -16,11 +17,7 @@ public class CreateAccountAPITest extends BaseApiTest {
     @Test(description = "REST API - POST create with field validation")
     public void testPostRequest() {
         step("Send POST request to /posts");
-        response = RestApiClient.post(BASE_URL, "/posts", Map.of(
-                "title", "Test Post",
-                "body", "This is a test post created by automation",
-                "userId", 1
-        ));
+        response = RestApiClient.post(BASE_URL, "/posts", JsonSchemaUtil.read("CreatePost.json"));
         createAccountApi.setResponse(response);
 
         step("Validate status code");

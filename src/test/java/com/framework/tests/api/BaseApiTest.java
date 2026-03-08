@@ -48,25 +48,30 @@ public abstract class BaseApiTest {
     public void methodTeardown(ITestResult result) {
         String name = result.getMethod().getMethodName();
 
-        switch (result.getStatus()) {
-            case ITestResult.FAILURE -> {
-                reporter.logFail(result.getThrowable(), null);
-                LoggerUtil.error("❌ FAILED: " + name);
+        try {
+            switch (result.getStatus()) {
+                case ITestResult.FAILURE -> {
+                    reporter.logFail(result.getThrowable(), null);
+                    LoggerUtil.error("❌ FAILED: " + name);
+                }
+                case ITestResult.SUCCESS -> {
+                    reporter.logPass("Test completed successfully");
+                    LoggerUtil.info("✅ PASSED: " + name);
+                }
+                case ITestResult.SKIP -> {
+                    String reason = result.getThrowable() != null
+                            ? result.getThrowable().getMessage() : "no reason";
+                    reporter.logSkip(reason);
+                    LoggerUtil.warn("⏭ SKIPPED: " + name);
+                }
             }
-            case ITestResult.SUCCESS -> {
-                reporter.logPass("Test completed successfully");
-                LoggerUtil.info("✅ PASSED: " + name);
-            }
-            case ITestResult.SKIP -> {
-                String reason = result.getThrowable() != null
-                        ? result.getThrowable().getMessage() : "no reason";
-                reporter.logSkip(reason);
-                LoggerUtil.warn("⏭ SKIPPED: " + name);
-            }
-        }
 
-        SmartAnalyticsReporter.record(result);
-        reporter.flush();
+            SmartAnalyticsReporter.record(result);
+        } catch (Exception e) {
+            LoggerUtil.error("[BaseApiTest] Error during teardown reporting: " + e.getMessage());
+        } finally {
+            try { reporter.flush(); } catch (Exception ignored) {}
+        }
     }
 
     @AfterSuite(alwaysRun = true)

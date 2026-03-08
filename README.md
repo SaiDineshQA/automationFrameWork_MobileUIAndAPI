@@ -723,6 +723,26 @@ String email = response.getData("user.email");
 
 When all YAML OR strategies fail to find an element, the **Self-Healing Engine** automatically generates alternative locators and tries them.
 
+### Toggle (Enable / Disable)
+
+Self-healing can be toggled via `config.properties` or overridden at runtime via Maven:
+
+```properties
+# config.properties
+self.healing.enabled=true    # true = enabled (default), false = disabled
+```
+
+```bash
+# Override via Maven command
+mvn test -Dself.healing.enabled=false    # disable healing for this run
+mvn test -Dself.healing.enabled=true     # enable healing for this run
+```
+
+| `self.healing.enabled` | Behavior |
+|------------------------|----------|
+| `true` (default)       | All YAML strategies tried → if all fail → self-healing kicks in → generates alternatives → caches working locator |
+| `false`                | All YAML strategies tried → if all fail → throws `NoSuchElementException` immediately (no healing attempt) |
+
 **Healing flow:**
 
 ```

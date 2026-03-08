@@ -13,6 +13,8 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- Default suite file — override via -DsuiteFile=... or Maven profiles -->
+        <suiteFile>src/test/resources/local-testng.xml</suiteFile>
     </properties>
 
     <dependencies>
@@ -105,10 +107,26 @@
                 <version>3.2.2</version>
                 <configuration>
                     <suiteXmlFiles>
-                        <suiteXmlFile>src/test/resources/testng.xml</suiteXmlFile>
+                        <suiteXmlFile>${suiteFile}</suiteXmlFile>
                     </suiteXmlFiles>
                 </configuration>
             </plugin>
         </plugins>
     </build>
+
+    <!-- Maven Profiles for different execution environments -->
+    <profiles>
+        <profile>
+            <id>local</id>
+            <properties>
+                <suiteFile>src/test/resources/local-testng.xml</suiteFile>
+            </properties>
+        </profile>
+        <profile>
+            <id>sauce</id>
+            <properties>
+                <suiteFile>src/test/resources/sauce-testng.xml</suiteFile>
+            </properties>
+        </profile>
+    </profiles>
 </project>

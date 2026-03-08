@@ -233,7 +233,7 @@ public class RestApiClient {
     /**
      * POST request with body.
      */
-    public static Response post(String baseUrl, String path, Object body) {
+    public static Response post(String baseUrl, String path, String body) {
         return new RestApiClient().baseUri(baseUrl).endpoint(path).body(body).execute("POST");
     }
 

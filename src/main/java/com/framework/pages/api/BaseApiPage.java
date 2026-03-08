@@ -175,6 +175,31 @@ public abstract class BaseApiPage {
 
     // ── Value getters (use with standard Assert) ───────────
 
+    /**
+     * Resolves a field name to its JSON path by looking up the Fields enum in the concrete page class.
+     *
+     *   getAccountDetailsApi.getJsonPath("USER_ID")  → "userId"
+     *   getUserInfoApi.getJsonPath("ADDRESS_CITY")    → "address.city"
+     *
+     * @param fieldName the enum constant name (e.g., "USER_ID", "TITLE")
+     * @return the JSON path string from the enum's toString()
+     * @throws IllegalArgumentException if the field name is not found in the Fields enum
+     */
+    public String getJsonPath(String fieldName) {
+        for (Class<?> inner : this.getClass().getDeclaredClasses()) {
+            if (inner.isEnum() && inner.getSimpleName().equals("Fields")) {
+                for (Object constant : inner.getEnumConstants()) {
+                    if (((Enum<?>) constant).name().equals(fieldName)) {
+                        return constant.toString();
+                    }
+                }
+                throw new IllegalArgumentException(
+                        getApiName() + " has no Fields enum constant named '" + fieldName + "'");
+            }
+        }
+        throw new IllegalArgumentException(getApiName() + " does not have a Fields enum");
+    }
+
     @SuppressWarnings("unchecked")
     public <T> T get(Enum<?> jsonPath) {
         return (T) response.jsonPath().get(jsonPath.toString());
@@ -198,6 +223,33 @@ public abstract class BaseApiPage {
 
     public <T> List<T> getList(Enum<?> jsonPath) {
         return response.jsonPath().getList(jsonPath.toString());
+    }
+
+    // ── String-based getters (resolve field name → JSON path via Fields enum) ──
+
+    public String getString(String fieldName) {
+        return response.jsonPath().getString(getJsonPath(fieldName));
+    }
+
+    public int getInt(String fieldName) {
+        return response.jsonPath().getInt(getJsonPath(fieldName));
+    }
+
+    public long getLong(String fieldName) {
+        return response.jsonPath().getLong(getJsonPath(fieldName));
+    }
+
+    public boolean getBoolean(String fieldName) {
+        return response.jsonPath().getBoolean(getJsonPath(fieldName));
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T> T get(String fieldName) {
+        return (T) response.jsonPath().get(getJsonPath(fieldName));
+    }
+
+    public <T> List<T> getList(String fieldName) {
+        return response.jsonPath().getList(getJsonPath(fieldName));
     }
 
     public int getStatusCode() {
